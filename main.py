@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pipeline.convert_to_pdf import convert_to_pdf
 from pipeline.extract_metadata import extract_metadata
-from pipeline.xlsx import write_xlsx
+from pipeline.write_xlsx import write_xlsx
 
 
 def parse_args():
