@@ -3,14 +3,16 @@
 Genera, a partir de los `.doc`/`.docx` de programas de asignatura de `programs.zip`,
 los archivos listos para importar en el admin de `labsoft-courseprogram`:
 
-- `pdfs/{código}_{semestre}.pdf` (uno por materia)
 - `cursos_<slug>.xlsx` (hoja "Cursos": código | nombre | programas)
 - `programas_asignatura_<slug>.xlsx` (hoja "Programas de asignatura": código | versión | fecha | responsable | semestre)
-- `<slug>_pdfs.zip` con todos los PDFs, para subir junto al segundo xlsx
+- `<slug>_pdfs.zip` con un PDF por materia (`{código}_{semestre}.pdf`), para subir junto al segundo xlsx
+
+Los PDFs no quedan sueltos en el proyecto: se generan en una carpeta temporal, se
+empacan en el zip y esa carpeta temporal se borra sola al terminar.
 
 ## Requisitos
 
-- macOS con Microsoft Word instalado (se usa para convertir `.doc`/`.docx` a PDF vía `docx2pdf`).
+- [LibreOffice](https://www.libreoffice.org) instalado (`brew install --cask libreoffice` en macOS) — se usa en modo headless (`soffice --headless --convert-to pdf`) para convertir `.doc`/`.docx` a PDF, sin abrir ninguna ventana.
 - Python 3.
 
 ## Uso
@@ -21,15 +23,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-1. Copia la carpeta del programa (ej. `Ingeniería mecánica (014-20241)`) dentro de `input/`.
-2. Completa un CSV con columnas `archivo,codigo,nombre`: una fila por materia disciplinar, con la ruta del archivo relativa a la carpeta del programa, su código oficial y su nombre. La columna `codigo` viene vacía a propósito en el ejemplo — esos códigos no están en los documentos, hay que tomarlos del catálogo oficial de la escuela.
-3. Corre, pasando el nombre exacto del programa (igual al de la carpeta en `input/` y al del `Program` en la base de datos) y el CSV que llenaste:
+1. Descomprime `programs.zip` dentro de `input/` (con toda la estructura que trae, no hace falta acomodar nada — `main.py` busca la carpeta del programa en cualquier nivel dentro de `input/`).
+2. Completa un CSV con columnas `archivo,codigo,nombre`: una fila por materia disciplinar, con la ruta del archivo relativa a la carpeta del programa (ej. `4_Disciplinar/3_MecánicaExperimental.doc`), su código oficial y su nombre. La columna `codigo` empieza vacía a propósito — esos códigos no están en los documentos, hay que tomarlos del catálogo oficial de la escuela.
+3. Corre, pasando el nombre exacto del programa (igual al de su carpeta y al del `Program` en la base de datos) y el CSV que llenaste:
 
 ```bash
-python3 main.py --program "Ingeniería mecánica (014-20241)" --codes codes.csv
+python3 main.py --program "Ingeniería mecánica (014-20241)" --codes codesIngMecanica.csv
 ```
 
-El nombre del programa también se usa para nombrar los archivos de salida (`cursos_<slug>.xlsx`, etc.), así que no hace falta tocar nada más para cambiar de materia/programa — solo los parámetros de la línea de comandos. Con `--input-dir` y `--output-dir` puedes además cambiar dónde busca la carpeta del programa y dónde escribe los resultados (por defecto `input/` y `output/`).
+El nombre del programa también nombra los archivos de salida (`cursos_<slug>.xlsx`, etc.), así que para cambiar de materia/programa solo se tocan los parámetros de la línea de comandos, nada del código. `--input-dir` y `--output-dir` son opcionales (por defecto `input/` y `output/`) por si algún día cambia esa estructura de carpetas.
+
+### Materias incompletas
+
+Si a un documento le falta "Fecha elaboración", "Versión número" o "Responsable", o la fecha no tiene formato `DD/MM/AAAA`, esa materia se salta (no se genera su PDF ni sus filas en los Excel) y queda listada al final con el motivo exacto. El resto de materias sí se procesan normalmente — no hay que arreglar el CSV para poder correr el resto.
 
 Los resultados quedan en `output/`. Sube `cursos_<slug>.xlsx` primero por el admin de `Course`, y luego `programas_asignatura_<slug>.xlsx` + `<slug>_pdfs.zip` por el admin de `CourseProgram` ("Cargar programas de asignatura").
 
