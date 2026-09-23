@@ -1,6 +1,7 @@
 import argparse
 import csv
 import re
+import tempfile
 import unicodedata
 import zipfile
 from pathlib import Path
@@ -54,7 +55,6 @@ def main():
     input_directory = base_directory / args.input_dir
     program_directory = find_program_directory(input_directory, args.program)
     output_directory = base_directory / args.output_dir
-    pdf_directory = output_directory / 'pdfs'
     output_directory.mkdir(parents=True, exist_ok=True)
 
     codes_path = base_directory / args.codes
@@ -71,40 +71,43 @@ def main():
     programas_rows = []
     incomplete_courses = []
 
-    for course in courses:
-        document_path = program_directory / course['archivo']
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_directory = Path(temp_dir)
 
-        try:
-            metadata = extract_metadata(document_path)
+        for course in courses:
+            document_path = program_directory / course['archivo']
 
-            pdf_path = pdf_directory / f"{course['codigo']}_{metadata['semestre']}.pdf"
-            convert_to_pdf(document_path, pdf_path)
-        except Exception as error:
-            incomplete_courses.append((course['archivo'], str(error)))
-            continue
+            try:
+                metadata = extract_metadata(document_path)
 
-        cursos_rows.append([course['codigo'], course['nombre'], args.program])
-        programas_row = [
-            course['codigo'],
-            metadata['version'],
-            metadata['fecha'],
-            metadata['responsable'],
-            metadata['semestre'],
-        ]
-        programas_rows.append(programas_row)
+                pdf_path = pdf_directory / f"{course['codigo']}_{metadata['semestre']}.pdf"
+                convert_to_pdf(document_path, pdf_path)
+            except Exception as error:
+                incomplete_courses.append((course['archivo'], str(error)))
+                continue
 
-    cursos_path = output_directory / f'cursos_{slug}.xlsx'
-    programas_path = output_directory / f'programas_asignatura_{slug}.xlsx'
-    zip_path = output_directory / f'{slug}_pdfs.zip'
+            cursos_rows.append([course['codigo'], course['nombre'], args.program])
+            programas_row = [
+                course['codigo'],
+                metadata['version'],
+                metadata['fecha'],
+                metadata['responsable'],
+                metadata['semestre'],
+            ]
+            programas_rows.append(programas_row)
 
-    write_xlsx('Cursos', ['código', 'nombre', 'programas'], cursos_rows, cursos_path)
-    write_xlsx(
-        'Programas de asignatura',
-        ['código', 'versión', 'fecha', 'responsable', 'semestre'],
-        programas_rows,
-        programas_path,
-    )
-    zip_pdfs(pdf_directory, zip_path)
+        cursos_path = output_directory / f'cursos_{slug}.xlsx'
+        programas_path = output_directory / f'programas_asignatura_{slug}.xlsx'
+        zip_path = output_directory / f'{slug}_pdfs.zip'
+
+        write_xlsx('Cursos', ['código', 'nombre', 'programas'], cursos_rows, cursos_path)
+        write_xlsx(
+            'Programas de asignatura',
+            ['código', 'versión', 'fecha', 'responsable', 'semestre'],
+            programas_rows,
+            programas_path,
+        )
+        zip_pdfs(pdf_directory, zip_path)
 
     print(f'Listo: {len(cursos_rows)} materias procesadas.')
     print(f'  {cursos_path}')
